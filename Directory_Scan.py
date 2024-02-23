@@ -461,7 +461,7 @@ def get_file_owner(ObjectPath,platform='win'):
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description=" path scan ", usage="python3 %(prog)s [options]")
+        description=" Directory Scan ", usage="python3 %(prog)s [options]")
     # 扫描的目标目录
     parser.add_argument(
         "-d","--directory", help="The target directory to be scanned;default: current working directory.", default=Path.cwd(), metavar="DIR")

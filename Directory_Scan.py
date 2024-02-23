@@ -200,6 +200,8 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
             cmp_level = target_index - source_index  # 差距
             result_sz = sz/1024**cmp_level  # 进位 ，除以1024
     if return_unit:
+        if target_unit != 'B':
+            result_sz = round(result_sz, 4)
         return result_sz, target_unit
     else:
         return result_sz
@@ -408,7 +410,7 @@ def  get_file_info(target_path,whitelist,platform):
             else:
                 file_info_lst.append([FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit])
         else:
-            file_info_lst.appen([FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit])
+            file_info_lst.append([FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit])
         #print(file_info_lst)
         #print(f"文件: {target_path.name}")
     elif target_path.is_dir() and not target_path.is_symlink():
@@ -609,7 +611,7 @@ def main():
     #print(directory_info_dic.keys())
 
     # 更新所有层目录级的总大小
-    for dir_obj in directory_info_dic:
+    for dir_obj in list(directory_info_dic.keys()):
         Dir_Depth = len(dir_obj.relative_to(root_path).parts)# 
         CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[ParentOfDirectory]
         if Dir_Depth == 1:

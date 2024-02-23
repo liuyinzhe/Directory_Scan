@@ -461,7 +461,7 @@ def get_file_owner(ObjectPath,platform='win'):
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description=" Directory Scan ", usage="python3 %(prog)s [options]")
+        description=" path scan ", usage="python3 %(prog)s [options]")
     # 扫描的目标目录
     parser.add_argument(
         "-d","--directory", help="The target directory to be scanned;default: current working directory.", default=Path.cwd(), metavar="DIR")
@@ -527,11 +527,13 @@ def main():
 
     ## 读取白名单文件
     WhiteList_lst = set() # pathlib object
-    with open(whitelist_file,mode='rt',encoding='utf-8') as fh:
-        for line in fh:
-            path_obj = Path(line.strip())
-            if decide_subdirectory(root_path,path_obj):
-                WhiteList_lst.add(path_obj)
+    whitelist_file_obj = Path(whitelist_file).resolve()
+    if whitelist_file_obj.exists() and whitelist_file_obj.is_file():
+        with open(whitelist_file,mode='rt',encoding='utf-8') as fh:
+            for line in fh:
+                path_obj = Path(line.strip())
+                if decide_subdirectory(root_path,path_obj):
+                    WhiteList_lst.add(path_obj)
     
     path_tasks = []
     for path in iterate_path(root_path,WhiteList_lst,max_split_depth):

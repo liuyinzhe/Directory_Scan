@@ -178,7 +178,10 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
                 'GB': 3, 'TB': 4, 'PB': 5, 'AUTO': -1}
     source_index = unit_dic[source]
     target_index = unit_dic[target]
-    index = math.log(sz, 1024)  # 计算数字中有几个1024 相乘过；或者说可以被几个1024 除掉
+    if sz == 0:
+        index = 0
+    else:
+        index = math.log(sz, 1024)  # 计算数字中有几个1024 相乘过；或者说可以被几个1024 除掉
 
     # initialization
     target_unit = target
@@ -191,7 +194,6 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
         # 得到的 可 进位的数字+原始的 index;或者真正的单位
         target_unit = unit_lst[unit_index+source_index]
         result_sz = sz/1024**(unit_index)  # 进位
- 
     else:  # 非自动
         if index < 1:  # source 的单位比 target 还大
             cmp_level = source_index-target_index  # 差距
@@ -469,13 +471,13 @@ def get_args():
         "-d","--directory", help="The target directory to be scanned;default: current working directory.", default=Path.cwd(), metavar="DIR")
     # 初始的扫描深度，用于拆分任务 max_scan_depth
     parser.add_argument(
-        "-s","--split", help="The depth of the directory task split;[default: %(default)s]", type=int,  default=3, metavar="INT")
+        "-s","--split", help="The depth of the directory task split;[default: %(default)s]", type=int,  default=10, metavar="INT")
     # Top 最大的前N文件  TOPNUMBER
     parser.add_argument(
         "-n","--number", help="Sort by file size, and enter the first %(default)s file information;[default: %(default)s]", type=int,  default=20, metavar="INT")
     # 输出目录最大深度 MAXDEPTH
     parser.add_argument(
-        "-m","--maximum_depth", help='Only the maximum depth relative to the scanned directory is output;[default: %(default)s]', type=int, default=1, metavar="INT")
+        "-m","--maximum_depth", help='Only the maximum depth relative to the scanned directory is output;[default: %(default)s]', type=int, default=3, metavar="INT")
     # 白名单目录
     parser.add_argument(
         "-w",'--whitelist', help='Whitelist of directories/files, which does not count files or directories;[default: %(default)s]', type=str, default="WhiteList.txt", metavar="FILE")
@@ -561,6 +563,8 @@ def main():
     '''
 
     # PROCESS_NUM = 4
+    if PROCESS_NUM > len(path_tasks):
+        PROCESS_NUM = len(path_tasks)
     # start = time.time()
     infos = []
     with multiprocessing.Pool(PROCESS_NUM) as pool:
@@ -587,7 +591,7 @@ def main():
     file_info_lst.append([FileName,ParentOfDirectory,CreatedTime,ModifiedTime,FileSizeBit])
     '''
     UserOccupancySize_dic = {} # 存储用户总文件占用*****
-    directory_info_dic = {} # 目录下有文件的目录单独总大小
+    directory_info_dic = {} # 目录下有文件总大小(不包含文件夹)
     for info_lst in  result_info:
         FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit = info_lst
         if owner not in UserOccupancySize_dic:
@@ -609,11 +613,46 @@ def main():
         else:
             directory_info_dic[ParentOfDirectory][-1] += FileSizeBit 
     #print(directory_info_dic.keys())
+    '''
+    https://blog.csdn.net/Sniper_LA/article/details/86482942
+    a = [0,1,2,3,4]
+    b = [0,2,6]
+    list(set(a).intersection(set(b)))  # 使用 intersection 求a与b的交集,输出:[0, 2]
+    list(set(a).union(b))              # 使用 union 求a与b的并集,输出:[0, 1, 2, 3, 4, 6]
+    list(set(b).difference(set(a)))    # 使用 difference 求a与b的差(补)集:求b中有而a中没有的元素,输出: [6]
+    list(set(a).difference(set(b)))    # 使用 difference 求a与b的差(补)集:求a中有而b中没有的元素,输出:[1, 3, 4]
+    list(set(a).symmetric_difference(b))   # 使用 symmetric_difference 求a与b的对称差集,输出:[1, 3, 4, 6]
+    求交集：list(set(a).intersection(set(b))          输出 --> [0, 2]
+    求并集：list(set(a).union(b))                     输出 --> [0, 1, 2, 3, 4, 6]
+    求差(补)集： list(set(b).difference(set(a))       输出 --> [6]
+    求差(补)集： list(set(a).difference(set(b)))      输出 --> [1, 3, 4]
+    求对称差集： list(set(a).symmetric_difference(b)) 输出 --> [1, 3, 4, 6]
+    '''
+    # 循环获取所有有记录目录的上层目录，取唯一值，用于存储；对取交集的进行数量添加
+    root_parents_set = set(root_path.parents)
+    all_dir_set = set()
+    for dir_obj in list(directory_info_dic.keys()):
+        path_set = set(dir_obj.parents).difference(root_parents_set) # 所有level集合，相同路径是空set，1深度也是空set
+        all_dir_set = all_dir_set.union(path_set)
 
     # 更新所有层目录级的总大小
     for dir_obj in list(directory_info_dic.keys()):
         Dir_Depth = len(dir_obj.relative_to(root_path).parts)# 
-        CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[ParentOfDirectory]
+        target_path_set = all_dir_set.intersection(dir_obj.parents)
+
+        CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[dir_obj]
+        # root 下的 dir_obj 目录的所有上级目录字典累加
+        for SubDirectory in target_path_set:
+            tmp_depth = len(SubDirectory.relative_to(root_path).parts)# 
+            if SubDirectory not in directory_info_dic:
+                createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(SubDirectory)
+                CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
+                ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+                owner = get_file_owner(SubDirectory,platform)
+                directory_info_dic[SubDirectory] = [tmp_depth,owner,CreatedTime,ModifiedTime,FileSizeBit]
+            else:
+                directory_info_dic[SubDirectory][-1] += FileSizeBit 
+    '''
         if Dir_Depth == 1:
             continue
         else:# 取所有上级，只要深度大于1,主目录下所有文件都统计
@@ -627,7 +666,7 @@ def main():
                     directory_info_dic[dir_obj] = [tmp_depth,owner,CreatedTime,ModifiedTime,FileSizeBit]
                 else:
                     directory_info_dic[dir_obj][-1] += FileSizeBit 
-    
+    '''
     # 按照深度排序，输出所有目录 # directory_info_dic
     # CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[ParentOfDirectory]
     # MAXDEPTH = 5
@@ -645,6 +684,8 @@ def main():
             dir_stat_out.write('\t'.join([str(CatalogLevel),owner,CreatedTime,ModifiedTime,str(DirectorySize),SizeUnit,str(directory_obj)])+'\n')
     # 按照文件大小排序，输出top20大小的文件 # result_info
     #TOPNUMBER = 20
+    if TOPNUMBER > len(result_info):
+        TOPNUMBER = len(result_info)
     sorted_result_info =  sorted(result_info, key=lambda x:x[-1], reverse=True)
     TheLargestTop_file = Path.joinpath(outdir, "TheLargestTop."+str(TOPNUMBER)+".files.tsv")
     with open(TheLargestTop_file,mode='wt',encoding='utf-8') as largest_out:

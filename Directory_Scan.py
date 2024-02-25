@@ -592,6 +592,15 @@ def main():
     '''
     UserOccupancySize_dic = {} # 存储用户总文件占用*****
     directory_info_dic = {} # 目录下有文件总大小(不包含文件夹)
+    ### 防止目标目录下只有文件夹，提前存储
+    CatalogLevel = 0
+    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(root_path)
+    CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
+    ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+    owner = get_file_owner(root_path,platform)
+    FileSizeBit = 0
+    directory_info_dic[root_path] = [CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit]
+    ###
     for info_lst in  result_info:
         FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit = info_lst
         if owner not in UserOccupancySize_dic:

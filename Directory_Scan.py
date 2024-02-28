@@ -574,16 +574,24 @@ def main():
         # results = pool.map(howmany_within_range_rowonly,[row for row in data])
         # results = pool.starmap(howmany_within_range, [(row, 4, 8) for row in data])
         # https://blog.csdn.net/wei18791957243/article/details/108733719
-        infos = [info for 
-                  n, info in enumerate(pool.starmap(get_file_info,path_tasks))
-                  if info]
-    # print(f"Took {time.time() - start } seconds")
-    # print(f"Got {len(primes)} primes")
+
+        # infos = [info for info in  pool.starmap(get_file_info,path_tasks) if info]
+
+        # https://blog.csdn.net/qq_40541102/article/details/130641350
+        # 1. Pool.starmap_async() 和 Pool.starmap()的功能
+        # 创建一个进程池，进程池中有多个进程，多个进程可以并行执行任务，以缩短任务处理时间。
+        # 2. Pool.starmap()与Pool.starmap_async()的区别
+        # 相同点
+        # starmap_async()和starmap()都可以用来发出带有多个参数调用进程池中的函数的任务。(Both the starmap_async() and starmap() may be used to issue tasks that call a function in the process pool with more than one argument.)
+        # 区别
+        # starmap_async()函数不会阻塞，而starmap()函数会阻塞。
+        # starmap_async()函数返回AsyncResult，而starmap()函数返回目标函数返回值的可迭代对象
+        # starmap_async()函数可以对返回值和错误执行回调函数，而starmap()函数不支持回调函数。
+
+        infos = [result for result in pool.starmap_async(get_file_info,path_tasks).get()  if result]
     result_info =[]
     for inf in infos:
-        #print(inf)
         result_info = result_info + inf
-    #print(result_info)
     
     # 按照目录统计大小
     

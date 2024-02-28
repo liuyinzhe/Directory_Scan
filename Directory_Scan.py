@@ -408,7 +408,7 @@ def get_args():
         "-d","--directory", help="The target directory to be scanned;default: current working directory.", default=Path.cwd(), metavar="DIR")
     # 初始的扫描深度，用于拆分任务 max_scan_depth
     parser.add_argument(
-        "-s","--split", help="The depth of the directory task split;[default: %(default)s]", type=int,  default=10, metavar="INT")
+        "-s","--split", help="The depth of the directory task split;[default: %(default)s]", type=int,  default=5, metavar="INT")
     # Top 最大的前N文件  TOPNUMBER
     parser.add_argument(
         "-n","--number", help="Sort by file size, and enter the first %(default)s file information;[default: %(default)s]", type=int,  default=20, metavar="INT")

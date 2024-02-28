@@ -254,99 +254,6 @@ def getdirsize(dir, target='B'):
 ######################end       file size          end#####################
 
 ###################    目录扫描   #######################
- 
-def GetFolderCatalogPath(pwd):
-    '''
-    获取目录下文件夹全路径，返回列表
-    param: str  "pwd"
-    return:list [ str ]
-    '''
-    catalog_lst=[]
-    target_path=Path(pwd)
-    #dirname = child.parent
-    #dirname=target_path
-    for child in target_path.iterdir():
-        if child.is_symlink():
-            pass
-        elif child.is_dir():
-            #对于空文件夹跳过
-            if not os.listdir(str(child)):
-                print("empty directory: "+str(child))
-                continue
-            catalog_lst.append(child)
-        elif child.is_file():
-            pass
-    return catalog_lst
- 
-def GetFolderCatalogName(pwd):
-    '''
-    获取目录下文件夹名称，返回列表
-    param: str  "pwd"
-    return:list [ str ]
-    '''
-    catalog_lst=[]
-    target_path=Path(pwd)
-    #dirname = child.parent
-    #dirname=target_path
-    for child in target_path.iterdir():
-        if child.is_symlink():
-            pass
-        elif child.is_dir():
-            #对于空文件夹跳过
-            if not os.listdir(str(child)):
-                print("empty directory: "+str(child))
-                continue
-            catalog_lst.append(child.name)
-        elif child.is_file():
-            pass
-    return catalog_lst
- 
- 
-def GetAllFilePaths(pwd,wildcard='*'):
-    '''
-    获取目录下文件全路径，通配符检索特定文件名，返回列表
-    param: str  "pwd"
-    return:dirname pathlab_obj
-    return:list [ str ]
-    #https://zhuanlan.zhihu.com/p/36711862
-    #https://www.cnblogs.com/sigai/p/8074329.html
-    '''
-    files_lst = []
-    target_path=Path(pwd)
-    for child in target_path.rglob(wildcard):
-        if child.is_symlink():
-            pass
-        elif child.is_dir():
-            pass
-        elif child.is_file():
-            #files_lst.append(str(child))
-            files_lst.append(child)
-    return files_lst
- 
- 
-def GetAllFileNames(pwd):
-    '''
-    获取目录下所有文件名，返回列表
-    param: str  "pwd"
-    return:dirname pathlab_obj
-    return:list [ str ]
-    #https://zhuanlan.zhihu.com/p/36711862
-    #https://www.cnblogs.com/sigai/p/8074329.html
-    '''
-    files_lst = []
-    #字符串路径 工厂化为 pathlib 对象，可使用pathlib 对象的方法(函数)/属性(私有变量)
-    target_path = Path(pwd)
-    for child in target_path.rglob('*'):
-        if child.is_symlink():
-            pass
-        elif child.is_dir():
-            pass
-        elif child.is_file():
-            #child完整路径,child.relative_to(pwd) 相对于pwd的相对路径，其实就是文件名;可以通过child.name获得
-            files_lst.append(child.relative_to(pwd))
-            #print(child.relative_to(pwd))
-    return files_lst
-
 
 def decide_subdirectory(parent_directory,check_directory):
     '''
@@ -359,7 +266,36 @@ def decide_subdirectory(parent_directory,check_directory):
     abs_check_directory = Path(check_directory).resolve()
     return abs_parent_directory == abs_check_directory or abs_parent_directory in abs_check_directory.parents
 
-def iterate_path(root_path,whitelist,max_depth=1):
+
+def iterate_path(root_path,whitelist):
+    '''
+    迭代目录下所有文件
+    whitelist  path_obj
+    '''
+    # iterdir 只扫描当前1级目录
+    for child_path in root_path.iterdir():
+        if child_path.is_dir() and not child_path.is_symlink():
+            # 过滤白名单的路径
+            if len(whitelist) > 0:
+                if child_path in whitelist:
+                    continue
+                # set() 有交集形同内容，则认为有重复，去掉
+                elif len(list(whitelist.intersection(child_path.parents)))>0:
+                    continue
+            yield from iterate_path(child_path,whitelist)
+        elif child_path.is_file()  and not child_path.is_symlink():
+            # 过滤白名单的路径
+            if len(whitelist) > 0:
+                if child_path.parent in whitelist:
+                    continue
+                # set() 有交集形同内容，则认为有重复，去掉
+                elif len(list(whitelist.intersection(child_path.parents)))>0:
+                    continue
+            yield child_path
+        
+        # yield child_path
+            
+def iterate_path_WD(root_path,whitelist,max_depth=1):
     '''
     指定深度，获得目录下所有path
     whitelist  path_obj
@@ -376,7 +312,7 @@ def iterate_path(root_path,whitelist,max_depth=1):
                 # set() 有交集形同内容，则认为有重复，去掉
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
-            yield from iterate_path(child_path,whitelist,max_depth=child_max_depth)
+            yield from iterate_path_WD(child_path,whitelist,max_depth=child_max_depth)
         elif child_path.is_file()  and not child_path.is_symlink():
             # 过滤白名单的路径
             if len(whitelist) > 0:
@@ -389,6 +325,16 @@ def iterate_path(root_path,whitelist,max_depth=1):
         
         # yield child_path
 
+def get_metainfo(target_path,platform):
+    '''
+        获得文件/目录所有者，创建/修改时间
+    '''
+    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
+    CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
+    ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+    owner = get_file_owner(target_path,platform)
+    return owner,CreatedTime,ModifiedTime
+
 def  get_file_info(target_path,whitelist,platform):
     '''
     文件名，文件上级目录，创建时间，修改时间，文件大小bit
@@ -397,11 +343,8 @@ def  get_file_info(target_path,whitelist,platform):
     if target_path.is_file() and not target_path.is_symlink():
         FileName = target_path.name
         ParentOfDirectory = target_path.parent
-        createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
-        CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-        ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+        owner,CreatedTime,ModifiedTime = get_metainfo(target_path,platform)
         FileSizeBit = getFileSize(target_path, target='B')
-        owner = get_file_owner(target_path,platform)
         
         # 过滤白名单的路径
         if len(whitelist)>0:
@@ -416,10 +359,13 @@ def  get_file_info(target_path,whitelist,platform):
         #print(file_info_lst)
         #print(f"文件: {target_path.name}")
     elif target_path.is_dir() and not target_path.is_symlink():
-        for item in target_path.iterdir():
+        for item in iterate_path(target_path,whitelist):
+            '''
+                item:only file object
+            '''
             if  item.is_symlink():
                 continue
-            elif item.is_file():
+            else:
                 # 过滤白名单的路径
                 if len(whitelist)>0:
                     # set() 有交集内容，则认为有重复；白名单过滤
@@ -427,18 +373,9 @@ def  get_file_info(target_path,whitelist,platform):
                             continue
                 FileName = item.name
                 ParentOfDirectory = item.parent # pathlab 
-                createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(item)
-                CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-                ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+                owner,CreatedTime,ModifiedTime = get_metainfo(item,platform)
                 FileSizeBit = getFileSize(item, target='B')
-                owner = get_file_owner(target_path,platform)
                 file_info_lst.append([FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit])
-                #print(f"文件: {item.name}")
-            elif item.is_dir():
-                continue
-                DirectoryName = item.name
-                print(f"目录: {item.name}")
-            pass
     return file_info_lst
 
 def get_file_owner(ObjectPath,platform='win'):
@@ -540,12 +477,10 @@ def main():
                     WhiteList_lst.add(path_obj)
     
     path_tasks = []
-    for path in iterate_path(root_path,WhiteList_lst,max_split_depth):
+    for path in iterate_path_WD(root_path,WhiteList_lst,max_split_depth):
         #print(path.stat().st_gid)
         #print(path.stat().st_ctime)
         path_tasks.append((path,WhiteList_lst,platform))
-        #print(path)
-        #print(get_file_UTC_Timestamp(path))
         #print(path.parent)
 
     # print(a.stat().st_size)
@@ -602,10 +537,7 @@ def main():
     directory_info_dic = {} # 目录下有文件总大小(不包含文件夹)
     ### 防止目标目录下只有文件夹，提前存储
     CatalogLevel = 0
-    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(root_path)
-    CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-    ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-    owner = get_file_owner(root_path,platform)
+    owner,CreatedTime,ModifiedTime = get_metainfo(root_path,platform)
     FileSizeBit = 0
     directory_info_dic[root_path] = [CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit]
     ###
@@ -619,10 +551,7 @@ def main():
         if ParentOfDirectory not in directory_info_dic:
             CatalogLevel = len(Path(ParentOfDirectory).relative_to(root_path).parts)# 相对而言 1 只有目标目录下一层
             #CatalogLevel = len(Path(ParentOfDirectory).parts)
-            createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(ParentOfDirectory)
-            CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-            ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-            owner = get_file_owner(ParentOfDirectory,platform)
+            owner,CreatedTime,ModifiedTime = get_metainfo(ParentOfDirectory,platform)
             #print(ParentOfDirectory)
             directory_info_dic[ParentOfDirectory] = [CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit]
             #                                             0         1        2           3            4           5
@@ -662,28 +591,11 @@ def main():
         for SubDirectory in target_path_set:
             tmp_depth = len(SubDirectory.relative_to(root_path).parts)# 
             if SubDirectory not in directory_info_dic:
-                createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(SubDirectory)
-                CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-                ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-                owner = get_file_owner(SubDirectory,platform)
+                owner,CreatedTime,ModifiedTime = get_metainfo(SubDirectory,platform)
                 directory_info_dic[SubDirectory] = [tmp_depth,owner,CreatedTime,ModifiedTime,FileSizeBit]
             else:
                 directory_info_dic[SubDirectory][-1] += FileSizeBit 
-    '''
-        if Dir_Depth == 1:
-            continue
-        else:# 取所有上级，只要深度大于1,主目录下所有文件都统计
-            for tmp_depth in range(Dir_Depth,1,-1): #2,则循环一次
-                dir_obj = Path(dir_obj.parent)
-                if dir_obj not in directory_info_dic:
-                    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(dir_obj)
-                    CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-                    ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-                    owner = get_file_owner(dir_obj,platform)
-                    directory_info_dic[dir_obj] = [tmp_depth,owner,CreatedTime,ModifiedTime,FileSizeBit]
-                else:
-                    directory_info_dic[dir_obj][-1] += FileSizeBit 
-    '''
+    
     # 按照深度排序，输出所有目录 # directory_info_dic
     # CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[ParentOfDirectory]
     # MAXDEPTH = 5

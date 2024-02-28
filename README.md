@@ -10,7 +10,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -d DIR, --directory DIR
                         The target directory to be scanned;default: current working directory.
-  -s INT, --split INT   The depth of the directory task split;[default: 10]
+  -s INT, --split INT   The depth of the directory task split;[default: 5]
   -n INT, --number INT  Sort by file size, and enter the first 20 file information;[default: 20]
   -m INT, --maximum_depth INT
                         Only the maximum depth relative to the scanned directory is output;[default: 3]

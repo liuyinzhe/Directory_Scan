@@ -300,11 +300,9 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
     whitelist  path_obj
     '''
     # iterdir 只扫描当前1级目录
-    dir_flag = False
     for child_path in root_path.glob("*"):#root_path.iterdir():
         path_depth = len(child_path.relative_to(root_path).parts)
         if child_path.is_dir() and not child_path.is_symlink() and path_depth < max_depth :
-            dir_flag = True
             #print(child_path)
             child_max_depth = max_depth - 1
             #print(child_max_depth)
@@ -317,7 +315,6 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
                     continue
             yield from iterate_path_WD(child_path,whitelist,max_depth=child_max_depth)
         elif child_path.is_dir() and not child_path.is_symlink() and path_depth == max_depth :
-            dir_flag = True
             yield child_path
         elif child_path.is_file()  and not child_path.is_symlink():
             # 过滤白名单的路径

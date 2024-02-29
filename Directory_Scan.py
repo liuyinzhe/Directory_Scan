@@ -582,7 +582,8 @@ def main():
     '''
     # 循环获取所有有记录目录的上层目录，取唯一值，用于存储；对取交集的进行数量添加
     root_parents_set = set(root_path.parents)
-    all_dir_set = set()
+    root_parents_set.add(root_path) # root_path 也作为排除项
+    all_dir_set = set() # 所有有文件路径的parents 目录，不包括root_path
     for dir_obj in list(directory_info_dic.keys()):
         path_set = set(dir_obj.parents).difference(root_parents_set) # 所有level集合，相同路径是空set，1深度也是空set
         all_dir_set = all_dir_set.union(path_set)
@@ -590,9 +591,10 @@ def main():
     # 更新所有层目录级的总大小
     for dir_obj in list(directory_info_dic.keys()):
         Dir_Depth = len(dir_obj.relative_to(root_path).parts)# 
-        target_path_set = all_dir_set.intersection(dir_obj.parents)
+        target_path_set = all_dir_set.intersection(dir_obj.parents) #交集，文件目录所有上级目录,不包括root_path
 
         CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[dir_obj]
+        directory_info_dic[root_path][-1] += FileSizeBit #root_path 单独统计
         # root 下的 dir_obj 目录的所有上级目录字典累加
         for SubDirectory in target_path_set:
             tmp_depth = len(SubDirectory.relative_to(root_path).parts)# 

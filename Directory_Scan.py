@@ -589,11 +589,11 @@ def main():
 
     # 更新所有层目录级的总大小
     for dir_obj in list(directory_info_dic.keys()):
-        Dir_Depth = len(dir_obj.relative_to(root_path).parts)# 
-        target_path_set = all_dir_set.intersection(dir_obj.parents) #交集，文件目录所有上级目录,不包括root_path
-
         CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[dir_obj]
-        directory_info_dic[root_path][-1] += FileSizeBit #root_path 单独统计
+        if dir_obj != root_path:
+            directory_info_dic[root_path][-1] += FileSizeBit #root_path 单独统计
+        
+        target_path_set = all_dir_set.intersection(dir_obj.parents) #交集，文件目录所有上级目录,不包括root_path
         # root 下的 dir_obj 目录的所有上级目录字典累加
         for SubDirectory in target_path_set:
             tmp_depth = len(SubDirectory.relative_to(root_path).parts)# 

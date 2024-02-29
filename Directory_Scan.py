@@ -531,7 +531,7 @@ def main():
         infos = [result for result in pool.starmap_async(get_file_info,path_tasks).get()  if result]
     result_info =[]
     for inf in infos:
-        result_info = result_info + inf
+        result_info.extend(inf)
     
     # 按照目录统计大小
     

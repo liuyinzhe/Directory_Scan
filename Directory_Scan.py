@@ -328,8 +328,7 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield child_path
-    if not dir_flag :
-        yield root_path
+
 
 def get_metainfo(target_path,platform):
     '''

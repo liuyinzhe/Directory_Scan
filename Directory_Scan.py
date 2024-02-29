@@ -292,19 +292,22 @@ def iterate_path(root_path,whitelist):
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield child_path
-        
-        # yield child_path
+
             
 def iterate_path_WD(root_path,whitelist,max_depth=1):
     '''
-    指定深度，获得目录下所有path
+    指定深度，获得目录下所有path，包括目录
     whitelist  path_obj
     '''
     # iterdir 只扫描当前1级目录
-    for child_path in root_path.iterdir():
+    dir_flag = False
+    for child_path in root_path.glob("*"):#root_path.iterdir():
         path_depth = len(child_path.relative_to(root_path).parts)
         if child_path.is_dir() and not child_path.is_symlink() and path_depth < max_depth :
+            dir_flag = True
+            #print(child_path)
             child_max_depth = max_depth - 1
+            #print(child_max_depth)
             # 过滤白名单的路径
             if len(whitelist) > 0:
                 if child_path in whitelist:
@@ -313,6 +316,9 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield from iterate_path_WD(child_path,whitelist,max_depth=child_max_depth)
+        elif child_path.is_dir() and not child_path.is_symlink() and path_depth == max_depth :
+            dir_flag = True
+            yield child_path
         elif child_path.is_file()  and not child_path.is_symlink():
             # 过滤白名单的路径
             if len(whitelist) > 0:
@@ -322,8 +328,8 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield child_path
-        
-        # yield child_path
+    if not dir_flag :
+        yield root_path
 
 def get_metainfo(target_path,platform):
     '''

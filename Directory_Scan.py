@@ -9,9 +9,11 @@ import getpass
 import socket
 import argparse
 import subprocess
+import re
+_author_= 'eXps'
 
 # 写在前面
-# pathlib 除了官方文档，推荐这几个网址学习
+# pathlib 除了官方文档,推荐这几个网址学习
 # https://www.cnblogs.com/poloyy/p/12435628.html
 # https://zhuanlan.zhihu.com/p/87940289
 # https://zhuanlan.zhihu.com/p/139783331
@@ -30,7 +32,7 @@ st_gid: 所有者的组ID。
 st_size: 普通文件以字节为单位的大小；包含等待某些特殊文件的数据。
 st_atime: 上次访问的时间。
 st_mtime: 最后一次修改的时间。
-st_ctime: 由操作系统报告的"ctime"。在某些系统上（如Unix）是最新的元数据更改的时间，在其它系统上（如Windows）是创建时间（详细信息参见平台的文档）。
+st_ctime: 由操作系统报告的"ctime"。在某些系统上如Unix)是最新的元数据更改的时间,在其它系统上如Windows)是创建时间详细信息参见平台的文档)。
 '''
 
 #################start Judge the system platform start#################
@@ -71,7 +73,7 @@ def get_file_UTC_Timestamp(file_path):
     '''
     获得文件的两种时间戳；用于转换和计算
     #https://www.cnblogs.com/pal-duan/p/10568829.html
-    flag='g'   GMT 格林尼治标准时间  缩写 UTC 英法妥协缩写 time.gmtime()  #huawei cloud 用的是这个，所以和本地时间差了 8h
+    flag='g'   GMT 格林尼治标准时间  缩写 UTC 英法妥协缩写 time.gmtime()  #huawei cloud 用的是这个,所以和本地时间差了 8h
     flag='l'  time.localtime() 本机本地时间
     modifiedTime os.stat(file).st_mtime
     createdTime  os.stat(file).st_ctime
@@ -107,10 +109,10 @@ def convert_time2Timestamp(time_str, UTC_FORMAT="%Y-%m-%dT%H:%M:%SZ"):
 def Timestamp_local2utc(local_stamp):
     '''
     local_stamp 来自本地时间转换
-    根据时区与 UTC 时区的 时间偏移offset  ，计算utc 时区的时间戳
+    根据时区与 UTC 时区的 时间偏移offset  ,计算utc 时区的时间戳
 
     import datetime
-    timestamp = 1687565839  # 时间戳，单位为s
+    timestamp = 1687565839  # 时间戳,单位为s
     utc_time = datetime.datetime.utcfromtimestamp(timestamp)  # 将时间戳转换为UTC时间
     # 将UTC时间转换为北京时间
     beijing_timezone = datetime.timezone(datetime.timedelta(hours=8))
@@ -160,13 +162,13 @@ def TimeStamp2TimeStr(TimeStamp,FormatStr="%Y-%m-%d %H:%M:%S",TimeOffset_h=8):
 #https://blog.csdn.net/w55100/article/details/92081182
  
 #a ^ x = b
-#x = lgb ÷lga = log（以a为底）b的对数
+#x = lgb ÷lga = log以a为底)b的对数
 #https: // zhidao.baidu.com/question/750931419356209332.html
  
  
 def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
     '''
-    文件大小指定单位互转，自动则转换为最大的适合单位
+    文件大小指定单位互转,自动则转换为最大的适合单位
     '''
     #target=='auto' 自动转换大小进位,大于1024 就进位；对于不能进位的返回原始大小和单位
     #return_unit 是否返回 单位
@@ -188,7 +190,7 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
     result_sz = 0
 
     if target == 'AUTO':
-        if index < 1:  # source 比 target 还大，不能进位，自动就返回原始的
+        if index < 1:  # source 比 target 还大,不能进位,自动就返回原始的
             return sz, source
         unit_index = int(index)
         # 得到的 可 进位的数字+原始的 index;或者真正的单位
@@ -197,10 +199,10 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
     else:  # 非自动
         if index < 1:  # source 的单位比 target 还大
             cmp_level = source_index-target_index  # 差距
-            result_sz = sz*1024**cmp_level  # 退位，乘以1024
+            result_sz = sz*1024**cmp_level  # 退位,乘以1024
         else:  # source 的单位比 target 小
             cmp_level = target_index - source_index  # 差距
-            result_sz = sz/1024**cmp_level  # 进位 ，除以1024
+            result_sz = sz/1024**cmp_level  # 进位 ,除以1024
     if return_unit:
         if target_unit != 'B':
             result_sz = round(result_sz, 4)
@@ -208,11 +210,38 @@ def convertSizeUnit(sz, source='B', target='AUTO', return_unit=False):
     else:
         return result_sz
          
- 
- 
+def get_blocks_bytes(path, target='B'):
+    '''
+    linux 和 OS 使用du 命令获取文件和目录大小
+    返回block,计算和linux 系统上相同的文件大小
+    '''
+    cmd = "du -s {}".format(path)
+
+    err_flag = False
+    try:
+        ret = subprocess.run(args=cmd, encoding='utf8',
+                                stdout=subprocess.PIPE, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        err_flag = True
+
+    if err_flag:
+        return 0
+
+
+    total_blocks = int(re.match("(\d+)\t",ret.stdout).group(1))
+    # 统一输出
+    total_bytes = total_blocks * 1024  # 转换为字节
+    if target == "B":
+        return total_bytes
+    else:
+        new_sz = convertSizeUnit(total_bytes, source='B', target=target, return_unit=False)
+        return  float('{:.2f}'.format(new_sz))
+    
+
+
 def getFileSize(file_path, target='KB'):
     '''
-    获取文件大小，target指定文件大小单位
+    获取文件大小,target指定文件大小单位
     '''
     #from pathlib import Path
     stat_result=Path(file_path).stat()
@@ -234,7 +263,7 @@ def getFileSize(file_path, target='KB'):
  
 def getdirsize(dir, target='B'):
     '''
-    获取目录文件总大小，target指定文件大小单位
+    获取目录文件总大小,target指定文件大小单位
     '''
     size = 0
     # for root, dirs, files in os.walk(dir):
@@ -247,7 +276,7 @@ def getdirsize(dir, target='B'):
     for child in target_path.rglob("*"):
         if child.is_dir() or child.is_symlink():
             continue
-        size += getFileSize(child, target=target)
+        size += get_blocks_bytes(child, target=target)
 
     return size
  
@@ -279,7 +308,7 @@ def iterate_path(root_path,whitelist):
             if len(whitelist) > 0:
                 if child_path in whitelist:
                     continue
-                # set() 有交集形同内容，则认为有重复，去掉
+                # set() 有交集形同内容,则认为有重复,去掉
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield from iterate_path(child_path,whitelist)
@@ -288,7 +317,7 @@ def iterate_path(root_path,whitelist):
             if len(whitelist) > 0:
                 if child_path.parent in whitelist:
                     continue
-                # set() 有交集形同内容，则认为有重复，去掉
+                # set() 有交集形同内容,则认为有重复,去掉
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield child_path
@@ -296,7 +325,7 @@ def iterate_path(root_path,whitelist):
             
 def iterate_path_WD(root_path,whitelist,max_depth=1):
     '''
-    指定深度，获得目录下所有path，包括目录
+    指定深度,获得目录下所有path,包括目录
     whitelist  path_obj
     '''
     # iterdir 只扫描当前1级目录
@@ -310,7 +339,7 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
             if len(whitelist) > 0:
                 if child_path in whitelist:
                     continue
-                # set() 有交集形同内容，则认为有重复，去掉
+                # set() 有交集形同内容,则认为有重复,去掉
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield from iterate_path_WD(child_path,whitelist,max_depth=child_max_depth)
@@ -321,7 +350,7 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
             if len(whitelist) > 0:
                 if child_path.parent in whitelist:
                     continue
-                # set() 有交集形同内容，则认为有重复，去掉
+                # set() 有交集形同内容,则认为有重复,去掉
                 elif len(list(whitelist.intersection(child_path.parents)))>0:
                     continue
             yield child_path
@@ -329,24 +358,32 @@ def iterate_path_WD(root_path,whitelist,max_depth=1):
 
 def get_metainfo(target_path,platform):
     '''
-        获得文件/目录所有者，创建/修改时间
+        获得文件/目录所有者,创建/修改时间
+        正在读写占用的文件返回?
     '''
-    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
-    CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
-    ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-    owner = get_file_owner(target_path,platform)
+    try:
+        createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
+        CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
+        ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
+    except:
+        CreatedTime = "occupying?"
+        ModifiedTime = "occupying?"
+    try:
+        owner = get_file_owner(target_path,platform)
+    except:
+        owner = "occupying"
     return owner,CreatedTime,ModifiedTime
 
 def  get_file_info(target_path,whitelist,platform):
     '''
-    文件名，文件上级目录，创建时间，修改时间，文件大小bit
+    文件名,文件上级目录,创建时间,修改时间,文件大小bit
     '''
     file_info_lst = []
     if target_path.is_file() and not target_path.is_symlink():
         FileName = target_path.name
         ParentOfDirectory = target_path.parent
         owner,CreatedTime,ModifiedTime = get_metainfo(target_path,platform)
-        FileSizeBit = getFileSize(target_path, target='B')
+        FileSizeBit = get_blocks_bytes(target_path, target='B')
         
         # 过滤白名单的路径
         if len(whitelist)>0:
@@ -370,13 +407,13 @@ def  get_file_info(target_path,whitelist,platform):
             else:
                 # 过滤白名单的路径
                 if len(whitelist)>0:
-                    # set() 有交集内容，则认为有重复；白名单过滤
+                    # set() 有交集内容,则认为有重复；白名单过滤
                     if len(set(target_path.parents).intersection(whitelist))>0:
                             continue
                 FileName = item.name
                 ParentOfDirectory = item.parent # pathlab 
                 owner,CreatedTime,ModifiedTime = get_metainfo(item,platform)
-                FileSizeBit = getFileSize(item, target='B')
+                FileSizeBit = get_blocks_bytes(item, target='B')
                 file_info_lst.append([FileName,ParentOfDirectory,owner,CreatedTime,ModifiedTime,FileSizeBit])
     return file_info_lst
 
@@ -408,7 +445,7 @@ def get_args():
     # 扫描的目标目录
     parser.add_argument(
         "-d","--directory", help="The target directory to be scanned;default: current working directory.", default=Path.cwd(), metavar="DIR")
-    # 初始的扫描深度，用于拆分任务 max_scan_depth
+    # 初始的扫描深度,用于拆分任务 max_scan_depth
     parser.add_argument(
         "-s","--split", help="The depth of the directory task split;[default: %(default)s]", type=int,  default=5, metavar="INT")
     # Top 最大的前N文件  TOPNUMBER
@@ -496,7 +533,7 @@ def main():
     st_size: 普通文件以字节为单位的大小；包含等待某些特殊文件的数据。
     st_atime: 上次访问的时间。
     st_mtime: 最后一次修改的时间。
-    st_ctime: 由操作系统报告的"ctime"。在某些系统上（如Unix）是最新的元数据更改的时间，在其它系统上（如Windows）是创建时间（详细信息参见平台的文档）。
+    st_ctime: 由操作系统报告的"ctime"。在某些系统上如Unix)是最新的元数据更改的时间,在其它系统上如Windows)是创建时间详细信息参见平台的文档)。
     '''
 
     # PROCESS_NUM = 4
@@ -506,7 +543,7 @@ def main():
     infos = []
     with multiprocessing.Pool(PROCESS_NUM) as pool:
         # prime 返回值
-        # pool.map() 返回返回值的 列表，函数，参数列表 【(),()】
+        # pool.map() 返回返回值的 列表,函数,参数列表 【(),()】
         # Pool.starmap()就像是一个接受参数的Pool.map()版本
         # results = pool.map(howmany_within_range_rowonly,[row for row in data])
         # results = pool.starmap(howmany_within_range, [(row, 4, 8) for row in data])
@@ -516,14 +553,14 @@ def main():
 
         # https://blog.csdn.net/qq_40541102/article/details/130641350
         # 1. Pool.starmap_async() 和 Pool.starmap()的功能
-        # 创建一个进程池，进程池中有多个进程，多个进程可以并行执行任务，以缩短任务处理时间。
+        # 创建一个进程池,进程池中有多个进程,多个进程可以并行执行任务,以缩短任务处理时间。
         # 2. Pool.starmap()与Pool.starmap_async()的区别
         # 相同点
         # starmap_async()和starmap()都可以用来发出带有多个参数调用进程池中的函数的任务。(Both the starmap_async() and starmap() may be used to issue tasks that call a function in the process pool with more than one argument.)
         # 区别
-        # starmap_async()函数不会阻塞，而starmap()函数会阻塞。
-        # starmap_async()函数返回AsyncResult，而starmap()函数返回目标函数返回值的可迭代对象
-        # starmap_async()函数可以对返回值和错误执行回调函数，而starmap()函数不支持回调函数。
+        # starmap_async()函数不会阻塞,而starmap()函数会阻塞。
+        # starmap_async()函数返回AsyncResult,而starmap()函数返回目标函数返回值的可迭代对象
+        # starmap_async()函数可以对返回值和错误执行回调函数,而starmap()函数不支持回调函数。
 
         infos = [result for result in pool.starmap_async(get_file_info,path_tasks).get()  if result]
     result_info =[]
@@ -537,7 +574,7 @@ def main():
     '''
     UserOccupancySize_dic = {} # 存储用户总文件占用*****
     directory_info_dic = {} # 目录下有文件总大小(不包含文件夹)
-    ### 防止目标目录下只有文件夹，提前存储
+    ### 防止目标目录下只有文件夹,提前存储
     CatalogLevel = 0
     owner,CreatedTime,ModifiedTime = get_metainfo(root_path,platform)
     FileSizeBit = 0
@@ -576,12 +613,12 @@ def main():
     求差(补)集： list(set(a).difference(set(b)))      输出 --> [1, 3, 4]
     求对称差集： list(set(a).symmetric_difference(b)) 输出 --> [1, 3, 4, 6]
     '''
-    # 循环获取所有有记录目录的上层目录，取唯一值，用于存储；对取交集的进行数量添加
+    # 循环获取所有有记录目录的上层目录,取唯一值,用于存储；对取交集的进行数量添加
     root_parents_set = set(root_path.parents)
     root_parents_set.add(root_path) # root_path 也作为排除项
-    all_dir_set = set() # 所有有文件路径的parents 目录，不包括root_path
+    all_dir_set = set() # 所有有文件路径的parents 目录,不包括root_path
     for dir_obj in list(directory_info_dic.keys()):
-        path_set = set(dir_obj.parents).difference(root_parents_set) # 所有level集合，相同路径是空set，1深度也是空set
+        path_set = set(dir_obj.parents).difference(root_parents_set) # 所有level集合,相同路径是空set,1深度也是空set
         all_dir_set = all_dir_set.union(path_set)
 
     # 更新所有层目录级的总大小
@@ -590,7 +627,7 @@ def main():
         if dir_obj != root_path:
             directory_info_dic[root_path][-1] += FileSizeBit #root_path 单独统计
         
-        target_path_set = all_dir_set.intersection(dir_obj.parents) #交集，文件目录所有上级目录,不包括root_path
+        target_path_set = all_dir_set.intersection(dir_obj.parents) #交集,文件目录所有上级目录,不包括root_path
         # root 下的 dir_obj 目录的所有上级目录字典累加
         for SubDirectory in target_path_set:
             tmp_depth = len(SubDirectory.relative_to(root_path).parts)# 
@@ -600,7 +637,7 @@ def main():
             else:
                 directory_info_dic[SubDirectory][-1] += FileSizeBit 
     
-    # 按照深度排序，输出所有目录 # directory_info_dic
+    # 按照深度排序,输出所有目录 # directory_info_dic
     # CatalogLevel,owner,CreatedTime,ModifiedTime,FileSizeBit = directory_info_dic[ParentOfDirectory]
     # MAXDEPTH = 5
     # CatalogLevel 升序,FileSizeBit 降序
@@ -615,7 +652,7 @@ def main():
                 break
             DirectorySize,SizeUnit = convertSizeUnit(FileSizeBit, source='B', target='AUTO', return_unit=True)
             dir_stat_out.write('\t'.join([str(CatalogLevel),owner,CreatedTime,ModifiedTime,str(DirectorySize),SizeUnit,str(directory_obj)])+'\n')
-    # 按照文件大小排序，输出top20大小的文件 # result_info
+    # 按照文件大小排序,输出top20大小的文件 # result_info
     #TOPNUMBER = 20
     if TOPNUMBER > len(result_info):
         TOPNUMBER = len(result_info)
@@ -630,7 +667,7 @@ def main():
             largest_out.write('\t'.join([FileName,str(ParentOfDirectory),owner,CreatedTime,ModifiedTime,str(FileSize),SizeUnit])+'\n')
 
 
-    # 用户文件占用总大小排序，输出所有用户的占用空间 # UserOccupancySize_dic
+    # 用户文件占用总大小排序,输出所有用户的占用空间 # UserOccupancySize_dic
     
     sorted_user_lst = sorted(UserOccupancySize_dic.keys(), key=lambda user:UserOccupancySize_dic[user], reverse=True)
     Disk_Usage_file = Path.joinpath(outdir, "Disk_Usage.User.tsv")

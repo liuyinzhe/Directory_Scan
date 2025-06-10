@@ -80,9 +80,13 @@ def get_file_UTC_Timestamp(file_path):
     #时间戳之间没有差异
     '''
     #from pathlib import Path
-    stat_result=Path(file_path).stat()
-    createdTimeStamp = Timestamp_local2utc(stat_result.st_ctime)
-    modifiedTimeStamp = Timestamp_local2utc(stat_result.st_mtime)
+    try:
+        stat_result=Path(file_path).stat()
+        createdTimeStamp = Timestamp_local2utc(stat_result.st_ctime)
+        modifiedTimeStamp = Timestamp_local2utc(stat_result.st_mtime)
+    except:
+        createdTimeStamp = 0
+        modifiedTimeStamp = 0
     # createdTimeStamp = Timestamp_local2utc(os.stat(file_path).st_ctime)
     # modifiedTimeStamp = Timestamp_local2utc(os.stat(file_path).st_mtime)
     #主要检查修改时间
@@ -361,13 +365,14 @@ def get_metainfo(target_path,platform):
         获得文件/目录所有者,创建/修改时间
         正在读写占用的文件返回?
     '''
-    try:
-        createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
+
+    createdTimeStamp, modifiedTimeStamp = get_file_UTC_Timestamp(target_path)
+    if createdTimeStamp != 0 and modifiedTimeStamp != 0:
         CreatedTime = TimeStamp2TimeStr(createdTimeStamp)
         ModifiedTime = TimeStamp2TimeStr(modifiedTimeStamp)
-    except:
-        CreatedTime = "occupying?"
-        ModifiedTime = "occupying?"
+    else:
+        CreatedTime = "delete"
+        ModifiedTime = "delete"
     try:
         owner = get_file_owner(target_path,platform)
     except:
